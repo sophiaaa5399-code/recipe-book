@@ -32,6 +32,10 @@ const PROMPT = `너는 요리 레시피 정리를 도와주는 도우미야. 주
 - 레시피 내용을 전혀 찾을 수 없으면 found를 false로 하고 나머지는 빈 값으로 줘.
 - 알아볼 수 있는 정보만 채우고, 확실하지 않은 내용은 지어내지 마.`;
 
+const MULTI_IMAGE_PROMPT = `${PROMPT}
+- 아래 이미지들은 하나의 블로그 글(또는 게시물)을 위에서부터 순서대로 캡쳐한 여러 장의 사진이야.
+- 모든 이미지를 순서대로 읽어서, 하나의 레시피로 종합해서 정리해줘. 같은 재료나 단계가 여러 장에 걸쳐 나오면 중복 없이 합쳐줘.`;
+
 function parseResult(text: string | undefined): ExtractedRecipe & { found: boolean } {
   if (!text) return { found: false, title: "", ingredients: [], steps: [] };
   try {
@@ -59,13 +63,21 @@ export async function extractRecipeFromText(pageText: string) {
   return parseResult(response.text);
 }
 
-export async function extractRecipeFromImage(base64: string, mimeType: string) {
+export async function extractRecipeFromImages(
+  images: { base64: string; mimeType: string }[]
+) {
+  const promptText = images.length > 1 ? MULTI_IMAGE_PROMPT : PROMPT;
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [
       {
         role: "user",
-        parts: [{ text: PROMPT }, { inlineData: { data: base64, mimeType } }],
+        parts: [
+          { text: promptText },
+          ...images.map((img) => ({
+            inlineData: { data: img.base64, mimeType: img.mimeType },
+          })),
+        ],
       },
     ],
     config: {

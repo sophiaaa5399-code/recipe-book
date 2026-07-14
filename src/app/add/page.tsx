@@ -13,8 +13,8 @@ export default function AddRecipePage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [initial, setInitial] = useState<RecipeFormInitial>({});
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
 
   useEffect(() => {
     ensureSession();
@@ -70,19 +70,25 @@ export default function AddRecipePage() {
   }
 
   function handlePhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setPhotoFiles((prev) => [...prev, ...files]);
+    setPhotoPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+    e.target.value = "";
+  }
+
+  function removePhoto(index: number) {
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleExtractPhoto() {
-    if (!photoFile) return;
+    if (photoFiles.length === 0) return;
     setBusy(true);
     setNotice(null);
     try {
       const formData = new FormData();
-      formData.append("image", photoFile);
+      photoFiles.forEach((file) => formData.append("image", file));
       const res = await fetch("/api/extract-image", { method: "POST", body: formData });
       const data = await res.json();
 
@@ -94,12 +100,12 @@ export default function AddRecipePage() {
         title: data.title || "",
         ingredients: data.ingredients || [],
         steps: data.steps || [],
-        imageFile: photoFile,
+        imageFile: photoFiles[0],
       });
       setMode("form");
     } catch {
       setNotice("추출에 실패했어요. 직접 입력해주세요.");
-      setInitial({ imageFile: photoFile });
+      setInitial({ imageFile: photoFiles[0] });
       setMode("form");
     } finally {
       setBusy(false);
@@ -134,7 +140,7 @@ export default function AddRecipePage() {
             <span className="text-3xl">📷</span>
             <div>
               <p className="font-bold">캡쳐 사진으로 가져오기</p>
-              <p className="text-sm text-stone-500">저장해둔 캡쳐 사진에서 자동으로 인식해드려요</p>
+              <p className="text-sm text-stone-500">저장해둔 캡쳐 사진에서 자동으로 인식해드려요 (여러 장도 가능)</p>
             </div>
           </button>
           <button
@@ -173,26 +179,50 @@ export default function AddRecipePage() {
 
       {mode === "photo" && (
         <div className="flex flex-col gap-4 px-4 py-6">
+          <p className="text-sm text-stone-500">
+            블로그 글처럼 여러 장을 캡쳐했다면, 읽는 순서대로 여러 장을 한 번에 선택해주세요.
+          </p>
+
+          {photoPreviews.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {photoPreviews.map((src, i) => (
+                <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt={`캡쳐 ${i + 1}`} className="w-full h-full object-cover" />
+                  <span className="absolute top-1 left-1 bg-black/60 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(i)}
+                    className="absolute top-1 right-1 bg-black/60 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                    aria-label="삭제"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <label className="relative w-full aspect-video rounded-xl bg-white border border-dashed border-stone-300 overflow-hidden flex items-center justify-center">
-            {photoPreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoPreview} alt="캡쳐 사진" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-stone-400 text-sm">캡쳐 사진을 선택해주세요</span>
-            )}
+            <span className="text-stone-400 text-sm">
+              {photoPreviews.length > 0 ? "사진 추가로 선택하기" : "캡쳐 사진을 선택해주세요 (여러 장 가능)"}
+            </span>
             <input
               type="file"
               accept="image/*"
+              multiple
               onChange={handlePhotoPick}
               className="absolute inset-0 opacity-0 cursor-pointer"
             />
           </label>
           <button
             onClick={handleExtractPhoto}
-            disabled={busy || !photoFile}
+            disabled={busy || photoFiles.length === 0}
             className="rounded-xl bg-orange-600 text-white font-bold py-3 disabled:opacity-50"
           >
-            {busy ? "추출하는 중..." : "추출하기"}
+            {busy ? "추출하는 중..." : `추출하기${photoFiles.length > 0 ? ` (${photoFiles.length}장)` : ""}`}
           </button>
         </div>
       )}
