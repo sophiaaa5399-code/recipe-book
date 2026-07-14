@@ -105,6 +105,7 @@ export default function AddRecipePage() {
     if (photoFiles.length === 0) return;
     setBusy(true);
     setNotice(null);
+    const coverImage = photoFiles.find((f) => f.type.startsWith("image/"));
     try {
       const formData = new FormData();
       photoFiles.forEach((file) => formData.append("image", file));
@@ -119,12 +120,12 @@ export default function AddRecipePage() {
         title: data.title || "",
         ingredients: data.ingredients || [],
         steps: data.steps || [],
-        imageFile: photoFiles[0],
+        imageFile: coverImage,
       });
       setMode("form");
     } catch {
       setNotice("추출에 실패했어요. 직접 입력해주세요.");
-      setInitial({ imageFile: photoFiles[0] });
+      setInitial({ imageFile: coverImage });
       setMode("form");
     } finally {
       setBusy(false);
@@ -159,7 +160,7 @@ export default function AddRecipePage() {
             <span className="text-3xl">📷</span>
             <div>
               <p className="font-bold">캡쳐 사진으로 가져오기</p>
-              <p className="text-sm text-stone-500">저장해둔 캡쳐 사진에서 자동으로 인식해드려요 (여러 장도 가능)</p>
+              <p className="text-sm text-stone-500">저장해둔 캡쳐 사진에서 자동으로 인식해드려요 (여러 장 또는 PDF도 가능)</p>
             </div>
           </button>
           <button
@@ -200,14 +201,24 @@ export default function AddRecipePage() {
         <div className="flex flex-col gap-4 px-4 py-6">
           <p className="text-sm text-stone-500">
             블로그 글처럼 여러 장을 캡쳐했다면, 읽는 순서대로 여러 장을 한 번에 선택해주세요.
+            사진들을 합친 PDF 파일도 한 개 선택해서 올릴 수 있어요.
           </p>
 
           {photoPreviews.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
               {photoPreviews.map((src, i) => (
                 <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt={`캡쳐 ${i + 1}`} className="w-full h-full object-cover" />
+                  {photoFiles[i]?.type === "application/pdf" ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-2 text-center">
+                      <span className="text-2xl">📄</span>
+                      <span className="text-[10px] text-stone-500 line-clamp-2 break-all">
+                        {photoFiles[i].name}
+                      </span>
+                    </div>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={src} alt={`캡쳐 ${i + 1}`} className="w-full h-full object-cover" />
+                  )}
                   <span className="absolute top-1 left-1 bg-black/60 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                     {i + 1}
                   </span>
@@ -226,11 +237,11 @@ export default function AddRecipePage() {
 
           <label className="relative w-full aspect-video rounded-xl bg-white border border-dashed border-stone-300 overflow-hidden flex items-center justify-center">
             <span className="text-stone-400 text-sm">
-              {photoPreviews.length > 0 ? "사진 추가로 선택하기" : "캡쳐 사진을 선택해주세요 (여러 장 가능)"}
+              {photoPreviews.length > 0 ? "추가로 선택하기" : "캡쳐 사진 또는 PDF를 선택해주세요"}
             </span>
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
               multiple
               onChange={handlePhotoPick}
               className="absolute inset-0 opacity-0 cursor-pointer"
@@ -245,7 +256,7 @@ export default function AddRecipePage() {
               ? "사진 준비 중..."
               : busy
                 ? "추출하는 중..."
-                : `추출하기${photoFiles.length > 0 ? ` (${photoFiles.length}장)` : ""}`}
+                : `추출하기${photoFiles.length > 0 ? ` (${photoFiles.length}개)` : ""}`}
           </button>
         </div>
       )}

@@ -4,6 +4,7 @@ export async function compressImage(
   file: File,
   { maxDimension = 1600, quality = 0.8 } = {}
 ): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
   try {
     const bitmap = await createImageBitmap(file);
     const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
