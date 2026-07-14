@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { extractRecipeFromImages } from "@/lib/gemini";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const formData = await request.formData();
   const files = formData.getAll("image").filter((f): f is File => f instanceof File);

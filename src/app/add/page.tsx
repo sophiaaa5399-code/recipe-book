@@ -3,14 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ensureSession, supabase } from "@/lib/supabase";
+import { compressImage } from "@/lib/compressImage";
 import RecipeForm, { RecipeFormInitial } from "@/components/RecipeForm";
 
 type Mode = "select" | "url" | "photo" | "form";
+
+const MAX_PHOTOS = 15;
 
 export default function AddRecipePage() {
   const [mode, setMode] = useState<Mode>("select");
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const [compressing, setCompressing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [initial, setInitial] = useState<RecipeFormInitial>({});
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -69,12 +73,27 @@ export default function AddRecipePage() {
     }
   }
 
-  function handlePhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    setPhotoFiles((prev) => [...prev, ...files]);
-    setPhotoPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+  async function handlePhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
     e.target.value = "";
+    if (picked.length === 0) return;
+
+    const remaining = MAX_PHOTOS - photoFiles.length;
+    if (remaining <= 0) {
+      setNotice(`사진은 한 번에 최대 ${MAX_PHOTOS}장까지 선택할 수 있어요. 레시피가 담긴 페이지 위주로 골라주세요.`);
+      return;
+    }
+    const files = picked.slice(0, remaining);
+    if (picked.length > files.length) {
+      setNotice(`사진은 한 번에 최대 ${MAX_PHOTOS}장까지 선택할 수 있어서 앞의 ${files.length}장만 담았어요.`);
+    }
+
+    setCompressing(true);
+    const compressed = await Promise.all(files.map((f) => compressImage(f)));
+    setCompressing(false);
+
+    setPhotoFiles((prev) => [...prev, ...compressed]);
+    setPhotoPreviews((prev) => [...prev, ...compressed.map((f) => URL.createObjectURL(f))]);
   }
 
   function removePhoto(index: number) {
@@ -219,10 +238,14 @@ export default function AddRecipePage() {
           </label>
           <button
             onClick={handleExtractPhoto}
-            disabled={busy || photoFiles.length === 0}
+            disabled={busy || compressing || photoFiles.length === 0}
             className="rounded-xl bg-orange-600 text-white font-bold py-3 disabled:opacity-50"
           >
-            {busy ? "추출하는 중..." : `추출하기${photoFiles.length > 0 ? ` (${photoFiles.length}장)` : ""}`}
+            {compressing
+              ? "사진 준비 중..."
+              : busy
+                ? "추출하는 중..."
+                : `추출하기${photoFiles.length > 0 ? ` (${photoFiles.length}장)` : ""}`}
           </button>
         </div>
       )}

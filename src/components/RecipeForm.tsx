@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { uploadRecipeImage } from "@/lib/uploadImage";
+import { compressImage } from "@/lib/compressImage";
 import { CATEGORIES } from "@/lib/types";
 
 export type RecipeFormInitial = {
@@ -46,11 +47,12 @@ export default function RecipeForm({
     }
   }, [initial?.imageFile]);
 
-  function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    const compressed = await compressImage(file);
+    setImageFile(compressed);
+    setImagePreview(URL.createObjectURL(compressed));
   }
 
   async function handleSubmit(e: React.FormEvent) {

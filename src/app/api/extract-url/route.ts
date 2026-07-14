@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { extractRecipeFromText } from "@/lib/gemini";
 import { htmlToText, extractOgImage, toFetchableUrl } from "@/lib/html";
 
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   const { url } = await request.json();
   if (!url || typeof url !== "string") {

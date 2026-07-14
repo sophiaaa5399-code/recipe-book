@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 
 // 원본 사이트의 og:image는 리퍼러 제한(핫링크 방지)으로 브라우저에서 바로 못 불러오는
 // 경우가 많아서, 서버에서 대신 다운로드해 우리 Storage로 옮겨 저장한다.
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   const { imageUrl, accessToken } = await request.json();
   if (!imageUrl || !accessToken) {
