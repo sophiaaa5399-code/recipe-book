@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { ensureSession, supabase } from "@/lib/supabase";
 import { compressImage } from "@/lib/compressImage";
 import RecipeForm, { RecipeFormInitial } from "@/components/RecipeForm";
 
 type Mode = "select" | "url" | "photo" | "form";
 
 const MAX_PHOTOS = 15;
+
+function notFoundMessage(reason?: string) {
+  if (reason === "rate_limited") {
+    return "지금 AI 사용량이 많아서 잠시 처리하지 못했어요. 1분 정도 후에 다시 시도해주세요.";
+  }
+  return "레시피를 자동으로 찾지 못했어요. 아래에서 직접 채워주세요.";
+}
 
 export default function AddRecipePage() {
   const [mode, setMode] = useState<Mode>("select");
@@ -19,10 +25,6 @@ export default function AddRecipePage() {
   const [initial, setInitial] = useState<RecipeFormInitial>({});
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-
-  useEffect(() => {
-    ensureSession();
-  }, []);
 
   async function handleExtractUrl() {
     if (!url.trim()) return;
@@ -38,22 +40,17 @@ export default function AddRecipePage() {
 
       let finalImageUrl: string | null = data.image_url ?? null;
       if (finalImageUrl) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session) {
-          const rehostRes = await fetch("/api/rehost-image", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageUrl: finalImageUrl, accessToken: session.access_token }),
-          });
-          const rehostData = await rehostRes.json();
-          finalImageUrl = rehostData.image_url ?? null;
-        }
+        const rehostRes = await fetch("/api/rehost-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: finalImageUrl }),
+        });
+        const rehostData = await rehostRes.json();
+        finalImageUrl = rehostData.image_url ?? null;
       }
 
       if (!data.found) {
-        setNotice("레시피를 자동으로 찾지 못했어요. 아래에서 직접 채워주세요.");
+        setNotice(notFoundMessage(data.reason));
       }
 
       setInitial({
@@ -113,7 +110,7 @@ export default function AddRecipePage() {
       const data = await res.json();
 
       if (!data.found) {
-        setNotice("레시피를 자동으로 찾지 못했어요. 아래에서 직접 채워주세요.");
+        setNotice(notFoundMessage(data.reason));
       }
 
       setInitial({

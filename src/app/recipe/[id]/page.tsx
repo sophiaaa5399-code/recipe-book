@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ensureSession, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { Recipe } from "@/lib/types";
 
 export default function RecipeDetailPage({
@@ -19,7 +19,6 @@ export default function RecipeDetailPage({
 
   useEffect(() => {
     (async () => {
-      await ensureSession();
       const { data } = await supabase.from("recipes").select("*").eq("id", id).single();
       setRecipe((data as Recipe) ?? null);
       setLoading(false);

@@ -3,6 +3,22 @@ import type { ExtractedRecipe } from "./types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+// 무료 사용량은 모델별로 별도 한도라, 기본 모델이 하루 한도를 넘기면
+// 별도 한도를 쓰는 가벼운 모델로 자동 전환해서 계속 동작하게 한다.
+const PRIMARY_MODEL = "gemini-2.5-flash";
+const FALLBACK_MODEL = "gemini-flash-lite-latest";
+
+async function generateWithFallback(
+  params: Omit<Parameters<typeof ai.models.generateContent>[0], "model">
+) {
+  try {
+    return await ai.models.generateContent({ ...params, model: PRIMARY_MODEL });
+  } catch (err) {
+    if ((err as { status?: number })?.status !== 429) throw err;
+    return await ai.models.generateContent({ ...params, model: FALLBACK_MODEL });
+  }
+}
+
 const RECIPE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
@@ -36,6 +52,12 @@ const MULTI_IMAGE_PROMPT = `${PROMPT}
 - 아래 자료는 하나의 블로그 글(또는 게시물)을 위에서부터 순서대로 캡쳐한 여러 장의 사진이거나, 여러 페이지로 된 PDF 문서야.
 - 모든 페이지/사진을 순서대로 읽어서, 하나의 레시피로 종합해서 정리해줘. 같은 재료나 단계가 여러 장에 걸쳐 나오면 중복 없이 합쳐줘.`;
 
+export function classifyGeminiError(err: unknown): "rate_limited" | "extract_failed" {
+  const status = (err as { status?: number })?.status;
+  if (status === 429) return "rate_limited";
+  return "extract_failed";
+}
+
 function parseResult(text: string | undefined): ExtractedRecipe & { found: boolean } {
   if (!text) return { found: false, title: "", ingredients: [], steps: [] };
   try {
@@ -52,8 +74,7 @@ function parseResult(text: string | undefined): ExtractedRecipe & { found: boole
 }
 
 export async function extractRecipeFromText(pageText: string) {
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+  const response = await generateWithFallback({
     contents: `${PROMPT}\n\n--- 블로그 본문 ---\n${pageText.slice(0, 15000)}`,
     config: {
       responseMimeType: "application/json",
@@ -68,8 +89,7 @@ export async function extractRecipeFromImages(
 ) {
   const isMulti = images.length > 1 || images.some((img) => img.mimeType === "application/pdf");
   const promptText = isMulti ? MULTI_IMAGE_PROMPT : PROMPT;
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+  const response = await generateWithFallback({
     contents: [
       {
         role: "user",

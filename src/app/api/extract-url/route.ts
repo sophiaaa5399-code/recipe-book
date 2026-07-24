@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { extractRecipeFromText } from "@/lib/gemini";
+import { extractRecipeFromText, classifyGeminiError } from "@/lib/gemini";
 import { htmlToText, extractOgImage, toFetchableUrl } from "@/lib/html";
 
 export const maxDuration = 30;
@@ -32,7 +32,12 @@ export async function POST(request: Request) {
   try {
     const extracted = await extractRecipeFromText(text);
     return NextResponse.json({ ...extracted, image_url: imageUrl });
-  } catch {
-    return NextResponse.json({ found: false, reason: "extract_failed", image_url: imageUrl });
+  } catch (err) {
+    console.error("extract-url: gemini call failed", err);
+    return NextResponse.json({
+      found: false,
+      reason: classifyGeminiError(err),
+      image_url: imageUrl,
+    });
   }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ensureSession, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { CATEGORIES } from "@/lib/types";
 import type { Recipe } from "@/lib/types";
 import RecipeCard from "@/components/RecipeCard";
@@ -16,7 +16,6 @@ export default function Home() {
 
   useEffect(() => {
     (async () => {
-      await ensureSession();
       const { data } = await supabase
         .from("recipes")
         .select("*")

@@ -5,10 +5,15 @@ import { createClient } from "@supabase/supabase-js";
 // 경우가 많아서, 서버에서 대신 다운로드해 우리 Storage로 옮겨 저장한다.
 export const maxDuration = 30;
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 export async function POST(request: Request) {
-  const { imageUrl, accessToken } = await request.json();
-  if (!imageUrl || !accessToken) {
-    return NextResponse.json({ error: "imageUrl, accessToken이 필요합니다" }, { status: 400 });
+  const { imageUrl } = await request.json();
+  if (!imageUrl) {
+    return NextResponse.json({ error: "imageUrl이 필요합니다" }, { status: 400 });
   }
 
   let bytes: ArrayBuffer;
@@ -26,12 +31,6 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ image_url: null });
   }
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
-  );
 
   const ext = contentType.split("/")[1]?.split(";")[0] || "jpg";
   const path = `${crypto.randomUUID()}.${ext}`;

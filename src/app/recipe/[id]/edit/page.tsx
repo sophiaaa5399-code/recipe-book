@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { ensureSession, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import RecipeForm from "@/components/RecipeForm";
 import type { Recipe } from "@/lib/types";
 
@@ -17,7 +17,6 @@ export default function EditRecipePage({
 
   useEffect(() => {
     (async () => {
-      await ensureSession();
       const { data } = await supabase.from("recipes").select("*").eq("id", id).single();
       setRecipe((data as Recipe) ?? null);
       setLoading(false);

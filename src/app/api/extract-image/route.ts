@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { extractRecipeFromImages } from "@/lib/gemini";
+import { extractRecipeFromImages, classifyGeminiError } from "@/lib/gemini";
 
 export const maxDuration = 60;
 
@@ -20,7 +20,8 @@ export async function POST(request: Request) {
   try {
     const extracted = await extractRecipeFromImages(images);
     return NextResponse.json(extracted);
-  } catch {
-    return NextResponse.json({ found: false, reason: "extract_failed" });
+  } catch (err) {
+    console.error("extract-image: gemini call failed", err);
+    return NextResponse.json({ found: false, reason: classifyGeminiError(err) });
   }
 }
